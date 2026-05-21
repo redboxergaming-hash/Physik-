@@ -1,21 +1,35 @@
-# Physik Web-App: Methode der kleinen Schritte
+# Methode der kleinen Schritte – Freier Fall mit Luftwiderstand
+
+Diese Web-App ersetzt das Excel-Arbeitsblatt durch eine interaktive Simulation für den Physikversuch.
+
+## Tech-Stack
+- React
+- TypeScript
+- Vite
+- Recharts
+- Reines Frontend (kein Backend)
+
+## Features
+- Parametereingabe (dt, m, A, c_w, rho, y0, v0, Dauer)
+- Numerische Berechnung mit kleinen Zeitschritten
+- Ergebnis-Karten (v, y, a, F, max v, Zeitpunkt max v)
+- Vergleich mit freiem Fall ohne Luftwiderstand
+- Tabelle mit optional "Alle Werte anzeigen"
+- Diagramme: t-v und t-y
+- CSV exportieren / Daten kopieren / JSON exportieren
 
 ## Lokal starten
-Da die App als reine Frontend-Datei gebaut ist, reicht ein statischer Webserver.
-
 ```bash
-python3 -m http.server 5173
+npm install
+npm run dev
 ```
 
-Dann im Browser öffnen:
-
-- http://localhost:5173
-
-## Inhalt
-- Interaktive Eingabefelder
-- Numerische Simulation mit Luftwiderstand
-- Ergebnis-Karten
-- Tabelle (ausgedünnt oder alle Werte)
-- Diagramme (t-v und t-y)
-- Vergleich mit freiem Fall ohne Luftwiderstand
-- CSV/JSON Export + Daten kopieren
+## Für Netlify
+Build-Befehl:
+```bash
+npm run build
+```
+Publish directory:
+```bash
+dist
+```
