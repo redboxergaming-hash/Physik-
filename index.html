@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Methode der kleinen Schritte – Freier Fall mit Luftwiderstand</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      :root { --bg:#f3f7ff; --card:#fff; --text:#1f2a44; --muted:#5d6b8a; --accent:#3867ff; --accent2:#00a3a3; }
+      *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:var(--text)}
+      .wrap{max-width:1200px;margin:0 auto;padding:20px}
+      h1{font-size:clamp(1.4rem,3vw,2.2rem);margin:0 0 12px}
+      .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(34,69,153,.08);margin-bottom:16px}
+      .grid{display:grid;gap:12px}.grid.inputs{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+      label{font-size:.85rem;color:var(--muted);display:block;margin-bottom:5px}
+      input{width:100%;padding:10px;border:1px solid #ced7ee;border-radius:10px}
+      button{border:none;border-radius:10px;padding:10px 14px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+      button.secondary{background:#eef2ff;color:#2c49b1}
+      .btns{display:flex;gap:8px;flex-wrap:wrap}
+      .results{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+      .kpi{background:linear-gradient(130deg,#f8faff,#eef4ff);padding:12px;border-radius:12px}
+      .kpi b{display:block;font-size:1.1rem;margin-top:6px;color:#102f85}
+      table{width:100%;border-collapse:collapse;font-size:.92rem}
+      th,td{padding:9px;border-bottom:1px solid #e8edff;text-align:right} th{background:#dee8ff;color:#1f3d9a;position:sticky;top:0}
+      td:first-child,th:first-child{text-align:left}
+      .table-wrap{max-height:380px;overflow:auto;border-radius:12px;border:1px solid #e6ecff}
+      .charts{display:grid;grid-template-columns:1fr;gap:14px}
+      @media (min-width:950px){.charts{grid-template-columns:1fr 1fr}}
+      .note{color:var(--muted);font-size:.95rem;line-height:1.5}
+      .error{color:#b52121;font-weight:600}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Methode der kleinen Schritte – Freier Fall mit Luftwiderstand</h1>
+      <div class="card note">Die Fallbewegung wird in viele kleine Zeitschritte zerlegt. In jedem Schritt werden aus der aktuellen Geschwindigkeit die resultierende Kraft, Beschleunigung, neue Geschwindigkeit und neue Höhe berechnet.</div>
+      <div class="card">
+        <div class="grid inputs" id="inputs"></div>
+        <p id="error" class="error"></p>
+        <div class="btns">
+          <button id="run">Simulation berechnen</button>
+          <button class="secondary" id="defaults">Standardwerte laden</button>
+          <button class="secondary" id="csv">CSV exportieren</button>
+          <button class="secondary" id="copy">Daten kopieren</button>
+          <button class="secondary" id="json">Als JSON exportieren</button>
+          <button class="secondary" id="toggleAll">Alle Werte anzeigen: Aus</button>
+        </div>
+      </div>
+      <div class="card"><div class="grid results" id="results"></div></div>
+      <div class="card" id="comparison"></div>
+      <div class="card charts">
+        <canvas id="vChart"></canvas>
+        <canvas id="yChart"></canvas>
+      </div>
+      <div class="card table-wrap"><table><thead><tr><th>t in s</th><th>F in N</th><th>a in m/s²</th><th>v in m/s</th><th>y in m</th></tr></thead><tbody id="tbody"></tbody></table></div>
+    </div>
+    <script>
+      const g = 9.81;
+      const fields=[['dt',0.01],['m',100],['A',1],['c_w',0.5],['rho',1.23],['y0',3000],['v0',0],['duration',5]];
+      const labels={dt:'Zeitschritt dt (s)',m:'Masse m (kg)',A:'Querschnittsfläche A (m²)',c_w:'Luftwiderstandsbeiwert c_w',rho:'Luftdichte rho (kg/m³)',y0:'Starthöhe y0 (m)',v0:'Startgeschwindigkeit v0 (m/s)',duration:'Simulationsdauer (s)'};
+      const inputBox=document.getElementById('inputs');
+      fields.forEach(([k,v])=>{inputBox.insertAdjacentHTML('beforeend',`<div><label>${labels[k]}</label><input id="${k}" type="number" step="any" value="${v}"></div>`)})
+      let sim=[]; let showAll=false; let vChart,yChart;
+
+      function simulate(p){
+        const rows=[]; let t=0,v=p.v0,y=p.y0;
+        while(t<=p.duration+1e-9 && y>0){
+          const F=-p.m*g + 0.5*p.rho*p.c_w*p.A*v*v; // resultierende Kraft
+          const a=F/p.m; // Beschleunigung
+          const vNew=v+a*p.dt;
+          const yNew=y+vNew*p.dt;
+          rows.push({t,F,a,v:vNew,y:yNew});
+          t+=p.dt; v=vNew; y=yNew;
+        }
+        return rows;
+      }
+      function validate(p){
+        if(p.dt<=0) return 'dt muss > 0 sein.';
+        if(p.m<=0) return 'Masse muss > 0 sein.';
+        if(p.A<=0) return 'A muss > 0 sein.';
+        if(p.rho<=0) return 'rho muss > 0 sein.';
+        if(p.duration<=0) return 'Dauer muss > 0 sein.';
+        return '';
+      }
+      function getParams(){const p={};fields.forEach(([k])=>p[k]=Number(document.getElementById(k).value));return p}
+      function fmt(n,d=3){return Number(n).toFixed(d)}
+      function render(){
+        if(!sim.length)return;
+        const last=sim[sim.length-1];
+        const maxV=sim.reduce((a,b)=>Math.abs(b.v)>Math.abs(a.v)?b:a,sim[0]);
+        const cards=[['Geschwindigkeit nach Ende',`${fmt(last.v)} m/s`],['Höhe nach Ende',`${fmt(last.y)} m`],['Beschleunigung nach Ende',`${fmt(last.a)} m/s²`],['Resultierende Kraft nach Ende',`${fmt(last.F)} N`],['Maximale |v|',`${fmt(maxV.v)} m/s`],['Zeitpunkt max. |v|',`${fmt(maxV.t,2)} s`]];
+        document.getElementById('results').innerHTML=cards.map(c=>`<div class="kpi"><div>${c[0]}</div><b>${c[1]}</b></div>`).join('');
+        const p=getParams(); const t=Math.min(5,p.duration); const vFF=-g*t; const yFF=p.y0-0.5*g*t*t;
+        const diff=Math.abs(vFF-last.v);
+        document.getElementById('comparison').innerHTML=`<h3>Vergleich mit freiem Fall ohne Luftwiderstand</h3><p>v(${t}s) ohne Luftwiderstand: <b>${fmt(vFF)} m/s</b> · y(${t}s): <b>${fmt(yFF)} m</b><br>Bewertung: ${diff>3?'Luftwiderstand ist bereits deutlich bemerkbar.':'Unterschied ist noch eher klein bis moderat.'}</p>`;
+        const step=showAll?1:Math.max(1,Math.round(0.1/p.dt));
+        document.getElementById('tbody').innerHTML=sim.filter((_,i)=>i%step===0).map(r=>`<tr><td>${fmt(r.t,2)}</td><td>${fmt(r.F,2)}</td><td>${fmt(r.a,3)}</td><td>${fmt(r.v,3)}</td><td>${fmt(r.y,3)}</td></tr>`).join('');
+        drawCharts();
+      }
+      function drawCharts(){
+        const labels=sim.map(r=>r.t.toFixed(2)); const dataV=sim.map(r=>r.v); const dataY=sim.map(r=>r.y);
+        vChart?.destroy(); yChart?.destroy();
+        vChart=new Chart(document.getElementById('vChart'),{type:'line',data:{labels,datasets:[{label:'v(t) in m/s',data:dataV,borderColor:'#3867ff',pointRadius:0}]},options:{responsive:true}});
+        yChart=new Chart(document.getElementById('yChart'),{type:'line',data:{labels,datasets:[{label:'y(t) in m',data:dataY,borderColor:'#00a3a3',pointRadius:0}]},options:{responsive:true}});
+      }
+      function run(){
+        const p=getParams(); const err=validate(p); document.getElementById('error').textContent=err; if(err)return;
+        sim=simulate(p); render();
+      }
+      function csv(){ if(!sim.length)return; const h='t,F,a,v,y\n'; const body=sim.map(r=>[r.t,r.F,r.a,r.v,r.y].join(',')).join('\n'); download('simulation.csv',h+body,'text/csv'); }
+      function json(){ if(!sim.length)return; download('simulation.json',JSON.stringify(sim,null,2),'application/json'); }
+      function copy(){ if(!sim.length)return; navigator.clipboard.writeText(sim.map(r=>`${r.t}\t${r.F}\t${r.a}\t${r.v}\t${r.y}`).join('\n')); }
+      function download(name,text,type){const b=new Blob([text],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href)}
+      document.getElementById('run').onclick=run;
+      document.getElementById('defaults').onclick=()=>fields.forEach(([k,v])=>document.getElementById(k).value=v);
+      document.getElementById('csv').onclick=csv; document.getElementById('json').onclick=json; document.getElementById('copy').onclick=copy;
+      document.getElementById('toggleAll').onclick=()=>{showAll=!showAll;document.getElementById('toggleAll').textContent=`Alle Werte anzeigen: ${showAll?'Ein':'Aus'}`;render()};
+      run();
+    </script>
+  </body>
+</html>
