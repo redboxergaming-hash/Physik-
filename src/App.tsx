@@ -37,15 +37,13 @@ export function App() {
   };
 
   return (
-    <main className="max-w-6xl mx-auto p-4 md:p-6 space-y-4 md:space-y-5">
-      <header className="space-y-2">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">c_w-Wert eines Papierkegels bestimmen</h1>
-        <p className="text-lg text-slate-600">Aus Messdaten mit der Methode der kleinen Schritte</p>
+    <main className="max-w-6xl mx-auto p-4 space-y-4">
+      <header className="space-y-1">
+        <h1 className="text-3xl font-bold">c_w-Wert eines Papierkegels bestimmen</h1>
+        <p className="text-slate-600">Aus Messdaten mit der Methode der kleinen Schritte</p>
       </header>
-
-      <section className="app-card p-5 text-slate-700 leading-relaxed">
-        Ein Papierkegel wird aus bekannter Höhe ohne Anfangsgeschwindigkeit fallen gelassen. Die App passt den c_w-Wert so an,
-        dass simulierte und gemessene Fallzeit möglichst gut übereinstimmen.
+      <section className="bg-white rounded-xl shadow p-4 text-slate-700">
+        Ein Papierkegel wird aus bekannter Höhe ohne Anfangsgeschwindigkeit fallen gelassen. Die App passt den c_w-Wert so an, dass simulierte und gemessene Fallzeit möglichst gut übereinstimmen.
       </section>
 
       <FormulaBox />
@@ -56,14 +54,14 @@ export function App() {
           <ResultCards result={result} />
           <ChartsPanel result={result} />
           <SimulationTable rows={result.rows} showAll={showAll} onToggle={() => setShowAll((s) => !s)} dt={input.dt} />
-          <section className="app-card p-5 space-y-2">
-            <h3 className="panel-title">Vergleich mit freiem Fall ohne Luftwiderstand</h3>
+          <section className="bg-white rounded-xl shadow p-4 space-y-2">
+            <h3 className="font-semibold">Vergleich mit freiem Fall ohne Luftwiderstand</h3>
             <p>Fallzeit ohne Luftwiderstand: <strong>{freeFallTime.toFixed(3)} s</strong></p>
             <p>Gemessene Durchschnittsfallzeit: <strong>{result.measuredAvg.toFixed(3)} s</strong></p>
             <p>Unterschied: <strong>{(result.measuredAvg - freeFallTime).toFixed(3)} s</strong></p>
             <p className="text-slate-600">Der Papierkegel fällt deutlich langsamer, weil Luftwiderstand die Beschleunigung stark reduziert.</p>
           </section>
-          <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-slate-700">
+          <section className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
             <h4 className="font-semibold mb-1">Hinweise zur Messqualität</h4>
             <ul className="list-disc pl-5 space-y-1">
               <li>Mehrfachmessungen verbessern die Genauigkeit.</li>
