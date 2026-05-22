@@ -1,35 +1,36 @@
-# Methode der kleinen Schritte – Freier Fall mit Luftwiderstand
+# c_w-Wert eines Papierkegels bestimmen
 
-Diese Web-App ersetzt das Excel-Arbeitsblatt durch eine interaktive Simulation für den Physikversuch.
+Web-App für den Schulversuch zur experimentellen Bestimmung des Luftwiderstandsbeiwerts `c_w` eines Papierkegels über die Methode der kleinen Schritte.
 
-## Tech-Stack
-- React
-- TypeScript
-- Vite
+## Stack
+- React + TypeScript + Vite
+- Tailwind CSS
 - Recharts
-- Reines Frontend (kein Backend)
 
-## Features
-- Parametereingabe (dt, m, A, c_w, rho, y0, v0, Dauer)
-- Numerische Berechnung mit kleinen Zeitschritten
-- Ergebnis-Karten (v, y, a, F, max v, Zeitpunkt max v)
-- Vergleich mit freiem Fall ohne Luftwiderstand
-- Tabelle mit optional "Alle Werte anzeigen"
-- Diagramme: t-v und t-y
-- CSV exportieren / Daten kopieren / JSON exportieren
+## Funktionen
+- Eingabe echter Messdaten (Fallhöhe, Masse, Durchmesser, mehrere Fallzeiten)
+- Umrechnung von g→kg und cm→m
+- Automatische Flächenberechnung `A = π(d/2)^2`
+- Numerische Simulation mit Luftwiderstand und Iteration pro `dt`
+- Automatische c_w-Suche im Bereich `0.01 .. 5.0` (Binärsuche + Rasterprüfung)
+- Statistik der Messzeiten (Mittelwert, Min, Max, Streuung, Standardabweichung)
+- Ergebnisbewertung (Sehr gut / Gut / Ungenau)
+- Diagramme: `t-y`, `t-v`, Fehlerkurve `c_w -> |Δt|`
+- Simulationstabelle inkl. Toggle für alle Iterationen
+- Export: CSV, Messdaten kopieren, Ergebnisbericht kopieren
 
-## Lokal starten
+## Entwicklung
 ```bash
 npm install
 npm run dev
 ```
 
-## Für Netlify
-Build-Befehl:
+## Build
 ```bash
 npm run build
+npm run preview
 ```
-Publish directory:
-```bash
-dist
-```
+
+## Netlify
+- Build command: `npm run build`
+- Publish directory: `dist`

@@ -1,216 +1,79 @@
 import { useMemo, useState } from 'react';
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import {
-  defaultParams,
-  freeFallNoDrag,
-  runSimulation,
-  SimulationParams,
-  toCsv,
-  validateParams,
-} from './lib/simulation';
+import { ChartsPanel } from './components/ChartsPanel';
+import { ExportPanel } from './components/ExportPanel';
+import { FormulaBox } from './components/FormulaBox';
+import { InputPanel } from './components/InputPanel';
+import { ResultCards } from './components/ResultCards';
+import { SimulationTable } from './components/SimulationTable';
+import { ExperimentInput, freeFallNoDragTime, solveCw, validateInput } from './lib/physics';
 
-function formatNum(value: number, digits = 3) {
-  return value.toFixed(digits);
-}
+const defaults: ExperimentInput = {
+  heightM: 2,
+  massValue: 3.2,
+  massUnit: 'g',
+  diameterValue: 12,
+  diameterUnit: 'cm',
+  rho: 1.23,
+  g: 9.81,
+  dt: 0.001,
+  measuredTimes: [1.28, 1.31, 1.26, 1.33, 1.29],
+  cwMin: 0.01,
+  cwMax: 5,
+};
 
 export function App() {
-  const [params, setParams] = useState<SimulationParams>(defaultParams);
-  const [showAll, setShowAll] = useState(false);
+  const [input, setInput] = useState<ExperimentInput>(defaults);
   const [errors, setErrors] = useState<string[]>([]);
-  const [rows, setRows] = useState(() => runSimulation(defaultParams));
+  const [showAll, setShowAll] = useState(false);
+  const [result, setResult] = useState(() => solveCw(defaults));
 
-  const last = rows[rows.length - 1];
-  const maxV = useMemo(
-    () => rows.reduce((acc, cur) => (Math.abs(cur.v) > Math.abs(acc.v) ? cur : acc), rows[0]),
-    [rows],
-  );
+  const freeFallTime = useMemo(() => freeFallNoDragTime(input.heightM, input.g), [input.heightM, input.g]);
 
-  const comparedTime = Math.min(5, params.duration);
-  const freeFall = freeFallNoDrag(params.y0, comparedTime);
-
-  const displayRows = useMemo(() => {
-    if (showAll) return rows;
-    const step = Math.max(1, Math.round(0.1 / params.dt));
-    return rows.filter((_, idx) => idx % step === 0);
-  }, [rows, showAll, params.dt]);
-
-  const onChange = (key: keyof SimulationParams, value: string) => {
-    const parsed = Number(value);
-    setParams((prev) => ({ ...prev, [key]: parsed }));
-  };
-
-  const handleSimulate = () => {
-    const validation = validateParams(params);
-    setErrors(validation);
-    if (validation.length > 0) return;
-    setRows(runSimulation(params));
-  };
-
-  const restoreDefaults = () => {
-    setParams(defaultParams);
-    setErrors([]);
-    setRows(runSimulation(defaultParams));
-  };
-
-  const download = (name: string, content: string, mime: string) => {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
+  const run = () => {
+    const v = validateInput(input);
+    setErrors(v);
+    if (v.length) return;
+    setResult(solveCw(input));
   };
 
   return (
-    <main className="container">
-      <h1>Methode der kleinen Schritte – Freier Fall mit Luftwiderstand</h1>
-
-      <section className="card hint">
-        Die Bewegung wird in sehr kleine Zeitschritte zerlegt. In jedem Schritt werden Kraft, Beschleunigung,
-        Geschwindigkeit und Höhe neu berechnet.
+    <main className="max-w-6xl mx-auto p-4 space-y-4">
+      <header className="space-y-1">
+        <h1 className="text-3xl font-bold">c_w-Wert eines Papierkegels bestimmen</h1>
+        <p className="text-slate-600">Aus Messdaten mit der Methode der kleinen Schritte</p>
+      </header>
+      <section className="bg-white rounded-xl shadow p-4 text-slate-700">
+        Ein Papierkegel wird aus bekannter Höhe ohne Anfangsgeschwindigkeit fallen gelassen. Die App passt den c_w-Wert so an, dass simulierte und gemessene Fallzeit möglichst gut übereinstimmen.
       </section>
 
-      <section className="card">
-        <div className="input-grid">
-          {([
-            ['dt', 'Zeitschritt dt (s)'],
-            ['m', 'Masse m (kg)'],
-            ['A', 'Querschnittsfläche A (m²)'],
-            ['c_w', 'Luftwiderstandsbeiwert c_w'],
-            ['rho', 'Luftdichte rho (kg/m³)'],
-            ['y0', 'Starthöhe y0 (m)'],
-            ['v0', 'Startgeschwindigkeit v0 (m/s)'],
-            ['duration', 'Simulationsdauer (s)'],
-          ] as [keyof SimulationParams, string][]).map(([key, label]) => (
-            <label key={key}>
-              <span>{label}</span>
-              <input
-                type="number"
-                step="any"
-                value={params[key]}
-                onChange={(e) => onChange(key, e.target.value)}
-              />
-            </label>
-          ))}
-        </div>
-        {errors.length > 0 && (
-          <ul className="errors">
-            {errors.map((e) => (
-              <li key={e}>{e}</li>
-            ))}
-          </ul>
-        )}
-        <div className="btn-row">
-          <button onClick={handleSimulate}>Simulation berechnen</button>
-          <button className="secondary" onClick={restoreDefaults}>Standardwerte laden</button>
-          <button className="secondary" onClick={() => download('simulation.csv', toCsv(rows), 'text/csv')}>CSV exportieren</button>
-          <button className="secondary" onClick={() => navigator.clipboard.writeText(toCsv(rows))}>Daten kopieren</button>
-          <button className="secondary" onClick={() => download('simulation.json', JSON.stringify(rows, null, 2), 'application/json')}>Als JSON exportieren</button>
-          <button className="secondary" onClick={() => setShowAll((s) => !s)}>
-            Alle Werte anzeigen: {showAll ? 'Ein' : 'Aus'}
-          </button>
-        </div>
-      </section>
+      <FormulaBox />
+      <InputPanel input={input} setInput={setInput} onRun={run} errors={errors} />
 
-      <section className="kpi-grid">
-        {[
-          ['Geschwindigkeit nach Ende', `${formatNum(last.v)} m/s`],
-          ['Höhe nach Ende', `${formatNum(last.y)} m`],
-          ['Beschleunigung nach Ende', `${formatNum(last.a)} m/s²`],
-          ['Resultierende Kraft nach Ende', `${formatNum(last.F)} N`],
-          ['Maximale Geschwindigkeit |v|', `${formatNum(maxV.v)} m/s`],
-          ['Zeitpunkt max. Geschwindigkeit', `${formatNum(maxV.t, 2)} s`],
-        ].map(([name, value]) => (
-          <article key={name} className="card kpi">
-            <h3>{name}</h3>
-            <strong>{value}</strong>
-          </article>
-        ))}
-      </section>
-
-      <section className="card">
-        <h2>Vergleich mit freiem Fall ohne Luftwiderstand</h2>
-        <p>
-          v({comparedTime}s) ohne Luftwiderstand: <strong>{formatNum(freeFall.v)} m/s</strong> · y({comparedTime}s):{' '}
-          <strong>{formatNum(freeFall.y)} m</strong>
-        </p>
-        <p>
-          Bewertung:{' '}
-          <strong>
-            {Math.abs(freeFall.v - last.v) > 3
-              ? 'Der Luftwiderstand ist nach 5 Sekunden bereits deutlich bemerkbar.'
-              : 'Der Effekt ist nach 5 Sekunden noch klein bis moderat.'}
-          </strong>
-        </p>
-      </section>
-
-      <section className="charts">
-        <article className="card chart-card">
-          <h2>t-v-Diagramm</h2>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={rows}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="t" unit=" s" />
-              <YAxis unit=" m/s" />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="v" stroke="#305ce5" dot={false} name="Geschwindigkeit v(t)" />
-            </LineChart>
-          </ResponsiveContainer>
-        </article>
-
-        <article className="card chart-card">
-          <h2>t-y-Diagramm</h2>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={rows}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="t" unit=" s" />
-              <YAxis unit=" m" />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="y" stroke="#00a38f" dot={false} name="Höhe y(t)" />
-            </LineChart>
-          </ResponsiveContainer>
-        </article>
-      </section>
-
-      <section className="card table-card">
-        <h2>Wertetabelle</h2>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>t in s</th>
-                <th>F in N</th>
-                <th>a in m/s²</th>
-                <th>v in m/s</th>
-                <th>y in m</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayRows.map((r, i) => (
-                <tr key={`${r.t}-${i}`}>
-                  <td>{formatNum(r.t, 2)}</td>
-                  <td>{formatNum(r.F, 2)}</td>
-                  <td>{formatNum(r.a, 3)}</td>
-                  <td>{formatNum(r.v, 3)}</td>
-                  <td>{formatNum(r.y, 3)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {result && (
+        <>
+          <ResultCards result={result} />
+          <ChartsPanel result={result} />
+          <SimulationTable rows={result.rows} showAll={showAll} onToggle={() => setShowAll((s) => !s)} dt={input.dt} />
+          <section className="bg-white rounded-xl shadow p-4 space-y-2">
+            <h3 className="font-semibold">Vergleich mit freiem Fall ohne Luftwiderstand</h3>
+            <p>Fallzeit ohne Luftwiderstand: <strong>{freeFallTime.toFixed(3)} s</strong></p>
+            <p>Gemessene Durchschnittsfallzeit: <strong>{result.measuredAvg.toFixed(3)} s</strong></p>
+            <p>Unterschied: <strong>{(result.measuredAvg - freeFallTime).toFixed(3)} s</strong></p>
+            <p className="text-slate-600">Der Papierkegel fällt deutlich langsamer, weil Luftwiderstand die Beschleunigung stark reduziert.</p>
+          </section>
+          <section className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-slate-700">
+            <h4 className="font-semibold mb-1">Hinweise zur Messqualität</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Mehrfachmessungen verbessern die Genauigkeit.</li>
+              <li>Reaktionszeit beim Stoppen kann die Messung verfälschen.</li>
+              <li>Der Kegel muss ohne Anfangsgeschwindigkeit fallen gelassen werden.</li>
+              <li>Der Durchmesser der Öffnung muss möglichst genau gemessen werden.</li>
+              <li>Der Kegel sollte immer gleich ausgerichtet fallen.</li>
+            </ul>
+          </section>
+          <ExportPanel input={input} result={result} />
+        </>
+      )}
     </main>
   );
 }
